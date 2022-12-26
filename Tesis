@@ -1,0 +1,85 @@
+#Notebooks
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+%matplotlib inline
+plt.style.use('fivethirtyeight')
+from fbprophet import Prophet
+from fbprophet.plot import plot_plotly
+import plotly.offline as py
+
+py.init_notebook_mode()
+
+df = pd.read_excel('BD_completa.xlsx', sheet_name='Hoja1', usecols=['[Fecha Orden Compra]','precio_del_bien','[Código Artículo]', '[Código Rubro]'])
+df['[Fecha Orden Compra]'] = df['[Fecha Orden Compra]'].str.rstrip('.-')
+df.dropna(axis=0, how='any', thresh=None, subset=None, inplace=False)
+print(df)
+
+df['[Fecha Orden Compra]'] = df['[Fecha Orden Compra]'].str.rstrip('.-')
+
+df['[Fecha Orden Compra]'] = pd.to_datetime(df['[Fecha Orden Compra]'])
+df=df.set_index('[Fecha Orden Compra]')
+
+df = df[(df['[Código Rubro]'] == 2) & (df['[Código Artículo]']==32)]
+df = df.resample('2Q').sum()
+df=df.reset_index()
+
+df = df.rename(columns={'[Fecha Orden Compra]': 'ds',
+                        'precio_del_bien': 'y'})
+df.dropna(inplace=True)
+print (df)
+
+df.head()
+
+ax = df.set_index('ds').plot(figsize=(12, 8))
+ax.set_ylabel('monto')
+ax.set_xlabel('año')
+
+plt.show()
+print(df)
+
+my_model = Prophet(interval_width=0.95)
+
+my_model.fit(df)
+future_dates = my_model.make_future_dataframe(periods=6, freq='2Q')
+
+future_dates.head()
+
+forecast = my_model.predict(future_dates)
+forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].head()
+
+my_model.plot(forecast, uncertainty=True)
+
+my_model.plot_components(forecast)
+
+fig1 = my_model.plot_components(forecast)
+
+from fbprophet.plot import add_changepoints_to_plot
+fig = my_model.plot(forecast)
+a = add_changepoints_to_plot(fig.gca(), my_model, forecast)
+
+my_model.changepoints
+
+pro_change= Prophet(changepoint_range=0.9)
+forecast = pro_change.fit(df).predict(future_dates)
+fig= pro_change.plot(forecast);
+a = add_changepoints_to_plot(fig.gca(), pro_change, forecast)
+
+pro_change= Prophet(n_changepoints=20, yearly_seasonality=True)
+forecast = pro_change.fit(df).predict(future_dates)
+fig= pro_change.plot(forecast);
+a = add_changepoints_to_plot(fig.gca(), pro_change, forecast)
+
+pro_change= Prophet(n_changepoints=20, yearly_seasonality=True, changepoint_prior_scale=0.08)
+forecast = pro_change.fit(df).predict(future_dates)
+fig= pro_change.plot(forecast);
+a = add_changepoints_to_plot(fig.gca(), pro_change, forecast)
+
+import logging
+logging.getLogger('fbprophet').setLevel(logging.WARNING) 
+
+pro_change= Prophet(n_changepoints=20, yearly_seasonality=True, changepoint_prior_scale=0.001)
+forecast = pro_change.fit(df).predict(future_dates)
+fig= pro_change.plot(forecast);
+a = add_changepoints_to_plot(fig.gca(), pro_change, forecast)
+
